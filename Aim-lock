@@ -1,0 +1,162 @@
+-- Load DrRay UI Library
+local DrRayLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/AZYsGithub/DrRay-UI-Library/main/DrRay.lua"))()
+local window = DrRayLibrary:Load("Hitbox GUI", "Default")
+
+-- Create a tab
+local tab = DrRayLibrary.newTab("Hitbox Controls", "ImageIdHere")
+
+-- Variables to track hitbox, ESP, and target
+local hitboxSize = 100 -- Default hitbox size
+local espEnabled = false
+local currentTarget = nil
+local targetPlayerName = ""
+
+-- Function to create ESP
+local function createESP(player)
+    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+
+        -- Create a client-sided ESP box
+        local espBox = Instance.new("BoxHandleAdornment")
+        espBox.Size = hrp.Size + Vector3.new(1, 1, 1)
+        espBox.Adornee = hrp
+        espBox.Color3 = Color3.new(1, 1, 1) -- White color
+        espBox.Transparency = 0.7
+        espBox.AlwaysOnTop = true
+        espBox.Parent = hrp
+        espBox.Name = "ClientESPBox"
+    end
+end
+
+-- Function to remove ESP
+local function removeESP(player)
+    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        local espBox = hrp:FindFirstChild("ClientESPBox")
+        if espBox then
+            espBox:Destroy()
+        end
+    end
+end
+
+-- Function to enlarge hitbox
+local function enlargeHitbox(player, size)
+    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        hrp.Size = Vector3.new(size, size, size)
+
+        -- Create a client-sided red hitbox
+        local redHitbox = Instance.new("Part")
+        redHitbox.Size = Vector3.new(size, size, size)
+        redHitbox.Anchored = true
+        redHitbox.CanCollide = false
+        redHitbox.Transparency = 0.5
+        redHitbox.Color = Color3.new(1, 0, 0)
+        redHitbox.Parent = player.Character
+        redHitbox.Name = "ClientRedHitbox"
+
+        -- Weld hitbox to HumanoidRootPart
+        local weld = Instance.new("WeldConstraint")
+        weld.Part0 = hrp
+        weld.Part1 = redHitbox
+        weld.Parent = redHitbox
+
+        -- Apply ESP if enabled
+        if espEnabled then
+            createESP(player)
+        end
+    end
+end
+
+-- Function to reset hitbox
+local function resetHitbox(player)
+    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        hrp.Size = Vector3.new(2, 2, 1) -- Reset to default size
+
+        -- Remove the client-sided red hitbox
+        local redHitbox = player.Character:FindFirstChild("ClientRedHitbox")
+        if redHitbox then
+            redHitbox:Destroy()
+        end
+
+        -- Remove ESP
+        removeESP(player)
+    end
+end
+
+-- Function to find player by part of their name
+local function findPlayerByNamePart(partialName)
+    local players = game.Players:GetPlayers()
+    for _, player in pairs(players) do
+        if string.lower(player.Name):find(string.lower(partialName)) then
+            return player
+        end
+    end
+    return nil
+end
+
+-- Input to set target player name (partial match)
+tab.newInput("Target Player", "Enter part of the player's name.", function(text)
+    targetPlayerName = text
+    local player = findPlayerByNamePart(targetPlayerName)
+    if player then
+        print("Target player found: " .. player.Name)
+        currentTarget = player
+    else
+        print("No player found with that name.")
+    end
+end)
+
+-- Toggle for applying/removing hitbox enlargement for target player
+tab.newToggle("Enlarge Hitbox", "Toggle to apply/remove hitbox enlargement", false, function(toggleState)
+    if currentTarget then
+        if toggleState then
+            enlargeHitbox(currentTarget, hitboxSize)
+            print("Hitbox enlarged for: " .. currentTarget.Name)
+        else
+            resetHitbox(currentTarget)
+            print("Hitbox reset for: " .. currentTarget.Name)
+        end
+    else
+        print("No target player selected.")
+    end
+end)
+
+-- Slider to change hitbox size
+tab.newSlider("Hitbox Size", "Change hitbox size", 1000, false, function(size)
+    hitboxSize = size
+    print("Hitbox size set to: " .. hitboxSize)
+end)
+
+-- ESP Toggle for target player
+tab.newToggle("ESP Toggle", "Enable/Disable ESP for target", false, function(toggleState)
+    espEnabled = toggleState
+    if currentTarget then
+        if espEnabled then
+            createESP(currentTarget)
+            print("ESP enabled for: " .. currentTarget.Name)
+        else
+            removeESP(currentTarget)
+            print("ESP disabled for: " .. currentTarget.Name)
+        end
+    else
+        print("No target player selected.")
+    end
+end)
+
+-- Button to enlarge hitbox for all players
+tab.newButton("Enlarge All Hitboxes", "Enlarge hitbox for all players", function()
+    local players = game.Players:GetPlayers()
+    for _, player in pairs(players) do
+        enlargeHitbox(player, hitboxSize)
+    end
+end)
+
+-- Button to reset hitboxes for all players
+tab.newButton("Reset All Hitboxes", "Reset hitbox for all players", function()
+    local players = game.Players:GetPlayers()
+    for _, player in pairs(players) do
+        resetHitbox(player)
+    end
+end)
